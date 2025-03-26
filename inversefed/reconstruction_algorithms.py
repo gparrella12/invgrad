@@ -26,7 +26,9 @@ DEFAULT_CONFIG = dict(signed=False,
                       lr_decay=True,
                       scoring_choice='loss', 
                       vlm_pred=0,
-                      vlm_text='a photo of a dog',)
+                      vlm_text='a photo of a dog',
+                      reference_image='',
+                      alpha=0.5,)
 
 def _label_to_onehot(target, num_classes=100):
     target = torch.unsqueeze(target, 1)
@@ -206,7 +208,19 @@ class GradientReconstructor():
                 rec_loss += self.config['total_variation'] * TV(x_trial)
             
             if self.config['vlm_pred'] > 0:
-                rec_loss += self.config['vlm_pred'] * compute_vlm_score(x_trial, self.config['vlm_text'])
+                reference_image_path = self.config['reference_image']
+                # read the image 
+                from PIL import Image
+                import torchvision.transforms as transforms
+                transform = transforms.Compose([
+                    transforms.Resize((224, 224)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                ])
+                reference_image = Image.open(reference_image_path)
+                reference_image = transform(reference_image).unsqueeze(0).to(**self.setup)
+                
+                rec_loss += self.config['vlm_pred'] * compute_vlm_score(x_trial, reference_image, self.config['vlm_text'], alpha=0.5)
             
             rec_loss.backward()
             if self.config['signed']:
