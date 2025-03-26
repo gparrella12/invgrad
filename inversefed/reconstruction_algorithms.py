@@ -7,6 +7,7 @@ from .metrics import total_variation as TV
 from .metrics import InceptionScore
 from .medianfilt import MedianPool2d
 from copy import deepcopy
+from .vlm import compute_vlm_score
 
 import time
 
@@ -23,7 +24,9 @@ DEFAULT_CONFIG = dict(signed=False,
                       init='randn',
                       filter='none',
                       lr_decay=True,
-                      scoring_choice='loss')
+                      scoring_choice='loss', 
+                      vlm_pred=0,
+                      vlm_text='a photo of a dog',)
 
 def _label_to_onehot(target, num_classes=100):
     target = torch.unsqueeze(target, 1)
@@ -201,6 +204,10 @@ class GradientReconstructor():
 
             if self.config['total_variation'] > 0:
                 rec_loss += self.config['total_variation'] * TV(x_trial)
+            
+            if self.config['vlm_pred'] > 0:
+                rec_loss += self.config['vlm_pred'] * compute_vlm_score(x_trial, self.config['vlm_text'])
+            
             rec_loss.backward()
             if self.config['signed']:
                 x_trial.grad.sign_()
